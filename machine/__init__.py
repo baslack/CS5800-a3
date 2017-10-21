@@ -7,11 +7,14 @@ import collections
 kSTATES_PREFIX = "States"
 kALPHA_PREFIX = "Alphabet"
 kDTABLE_PREFIX = "D-Table"
+kTTABLE_PREFIX = "T-Table"
 kSTART_PREFIX = "Start"
 kACCEPT_PREFIX = "Accept"
+kLAMBA = ""
+kEMPTYSET = "0"
 
 
-def generateConfig():
+def generateConfigDFA():
     config = dict()
     config[kSTATES_PREFIX] = list(set("AB"))
     config[kALPHA_PREFIX] = list(set("ab"))
@@ -26,12 +29,30 @@ def generateConfig():
         json.dump(config, f)
 
 
+def generateConfigNFAlamba():
+    config = dict()
+    config[kSTATES_PREFIX] = list(set("AB"))
+    config[kALPHA_PREFIX] = [kLAMBA, 'a', 'b']
+    config[kDTABLE_PREFIX] = collections.defaultdict(dict)
+    for this_state in config[kSTATES_PREFIX]:
+        for this_alpha in config[kALPHA_PREFIX]:
+            config[kDTABLE_PREFIX][this_state][this_alpha] = this_state
+    config[kSTART_PREFIX] = "A"
+    config[kACCEPT_PREFIX] = list(set("A"))
+    filepath = os.path.join(os.path.expanduser("~"), "Desktop", "test_config.nfal")
+    with open(filepath, "w+") as f:
+        json.dump(config, f)
+
+
 def testDFA():
     test = DFA(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "test_config.dfa"))
     tape = Tape("aaabbabaabc")
     test.load(tape)
     test.exec()
     # print(test.states, test.alpha, test.d_table, test.start, test.accept)
+
+def testNFAlamba():
+    return NFAlambda(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "test_config.nfal"))
 
 
 class Machine:
@@ -93,46 +114,14 @@ class DFA(Machine):
 
             # validate config
             config_valid = True
-            missing_blocks = list()
 
-            # does config contain:
-            # states block
-            states_present = (kSTATES_PREFIX in configuration.keys())
-            config_valid &= states_present
-            if not states_present:
-                missing_blocks.append(kSTATES_PREFIX)
-
-            # alphabet block
-            alpha_present = (kALPHA_PREFIX in configuration.keys())
-            config_valid &= alpha_present
-            if not alpha_present:
-                missing_blocks.append(kALPHA_PREFIX)
-            pass
-
-            # d-table block
-            d_table_present = (kDTABLE_PREFIX in configuration.keys())
-            config_valid &= d_table_present
-            if not d_table_present:
-                missing_blocks.append(kDTABLE_PREFIX)
-            pass
-
-            # starting state block
-            start_present = (kSTART_PREFIX in configuration.keys())
-            config_valid &= start_present
-            if not start_present:
-                missing_blocks.append(kSTART_PREFIX)
-            pass
-
-            # accepting states block
-            accepting_present = (kACCEPT_PREFIX in configuration.keys())
-            config_valid &= accepting_present
-            if not alpha_present:
-                missing_blocks.append(kACCEPT_PREFIX)
-            pass
-
-            if not config_valid:
-                raise MissingConfigBlock(*missing_blocks)
-            pass
+            # check blocks
+            needed_configs = {kSTATES_PREFIX, kALPHA_PREFIX, \
+                              kDTABLE_PREFIX, kSTART_PREFIX, \
+                              kACCEPT_PREFIX}
+            all_blocks_present = needed_configs == set(configuration.keys())
+            if not all_blocks_present:
+                raise MissingConfigBlock(set(configuration.keys()).difference(needed_configs))
 
             # checking configs
             invalid_config_blocks = list()
@@ -234,6 +223,59 @@ class DFA(Machine):
             print("rejected {0}, invalid character on tape: {1}".format(str(self.loaded_tape), e))
 
 
+class NFAlambda(Machine):
+    def __init__(self, filepath=None):
+        self.states = None
+        self.alpha = None
+        self.t_table = None
+        self.start = None
+        self.accept = None
+        super().__init__(filepath)
+
+    def config(self, filepath):
+        with open(filepath) as f:
+            configuration = json.load(f)
+
+            # check needed blocks
+            needed_configs = {kSTATES_PREFIX, kALPHA_PREFIX, \
+                              kTTABLE_PREFIX, kSTART_PREFIX, \
+                              kACCEPT_PREFIX}
+            all_blocks_present = needed_configs == set(configuration.keys())
+            if not all_blocks_present:
+                raise MissingConfigBlock(set(configuration.keys()).difference(needed_configs))
+
+            # validate blocks
+            self.states = set([x.upper() for x in configuration[kSTATES_PREFIX]])
+            if self.states == set():
+                raise InvalidConfigBlock(kSTATES_PREFIX, self.states)
+            self.alpha = set([x.lower() for x in configuration[kALPHA_PREFIX]])
+            if self.alpha == set():
+                raise InvalidConfigBlock(kALPHA_PREFIX, self.alpha)
+            self.t_table = configuration[kTTABLE_PREFIX]
+            for this_state in self.t_table.keys():
+                for this_char in self.t_table[this_state].keys():
+                    if self.t_table[this_state][this_char] == kEMPTYSET:
+                        self.t_table[this_state][this_char] = set()
+                    else:
+                        self.t_table[this_state][this_char] = set(self.t_table[this_state][this_char])
+                        if not self.t_table[this_state][this_char].issubset(self.states):
+                            raise InvalidConfigBlock(kTTABLE_PREFIX, self.t_table[this_state][this_char])
+            self.start = configuration[kSTART_PREFIX]
+            if not self.start in self.states:
+                raise InvalidConfigBlock(kSTART_PREFIX, self.start)
+            self.accept = set([x.upper() for x in configuration[kACCEPT_PREFIX]])
+            if not self.accept.issubset(self.states):
+                raise InvalidConfigBlock(kACCEPT_PREFIX, self.accept)
+
+    def exec(self):
+        raise AttributeError("exec disabled for NFAlambda")
+
+
+def convertMachine(nfa_l: NFAlambda) -> DFA:
+    nfa_l.exec()
+    return DFA()
+
+
 class MissingConfigBlock(Exception):
     pass
 
@@ -260,4 +302,4 @@ class Tape:
 
 
 if __name__ == "__main__":
-    testDFA()
+    print(testNFAlamba().__dict__)
