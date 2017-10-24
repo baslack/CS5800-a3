@@ -51,6 +51,7 @@ def testDFA():
     test.exec()
     # print(test.states, test.alpha, test.d_table, test.start, test.accept)
 
+
 def testNFAlamba():
     return NFAlambda(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "test_config.nfal"))
 
@@ -225,11 +226,11 @@ class DFA(Machine):
 
 class NFAlambda(Machine):
     def __init__(self, filepath=None):
-        self.states = None
-        self.alpha = None
-        self.t_table = None
-        self.start = None
-        self.accept = None
+        self.states: set = None
+        self.alpha: set = None
+        self.t_table: dict = None
+        self.start: str = None
+        self.accept: set = None
         super().__init__(filepath)
 
     def config(self, filepath):
@@ -270,10 +271,49 @@ class NFAlambda(Machine):
     def exec(self):
         raise AttributeError("exec disabled for NFAlambda")
 
+    def lambda_closure(self, state) -> set:
+        # basis
+        lc = set(state)
+        state_stack = list(self.t_table[state][kLAMBA])
+        while len(state_stack) != 0:
+            current_state = state_stack.pop()
+            # rs
+            if not (current_state in lc):
+                lc.add(current_state)
+                try:
+                    state_stack.append(*self.t_table[current_state][kLAMBA])
+                except TypeError as e:
+                    # empty set in the t-table, nothing to add
+                    pass
+        return lc
 
-def convertMachine(nfa_l: NFAlambda) -> DFA:
-    nfa_l.exec()
-    return DFA()
+    def convert(self) -> DFA:
+        # empty DFA
+        Mprime = DFA()
+        # init q0
+        Mprime.start = copy.deepcopy(self.start)
+        # init sigma'
+        Mprime.alpha = copy.deepcopy(self.alpha)
+        Mprime.alpha.remove(kLAMBA)
+        #empty dtable
+        Mprime.d_table = collections.defaultdict(dict)
+        # init Q'
+        Mprime.states = self.lambda_closure(self.start)
+
+        #start loop
+
+        return Mprime
+
+
+def set2node(_set: set) -> str:
+    temp = ""
+    for a in _set:
+        temp += a
+    return temp
+
+
+def node2set(_str: str) -> set:
+    return set(_str)
 
 
 class MissingConfigBlock(Exception):
@@ -302,4 +342,7 @@ class Tape:
 
 
 if __name__ == "__main__":
-    print(testNFAlamba().__dict__)
+    test = testNFAlamba()
+    print(test.__dict__)
+    print(test.lambda_closure("A").__repr__())
+    print(test.convert().__dict__)
