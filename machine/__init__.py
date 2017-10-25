@@ -53,7 +53,7 @@ def testDFA():
 
 
 def testNFAlamba():
-    return NFAlambda(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "example.nfal"))
+    return NFAlambda(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "export.nfal"))
 
 
 class Machine:
@@ -77,6 +77,9 @@ class Machine:
         """
         pass
 
+    def export(self, filepath):
+        pass
+
     def exec(self):
         """
         performs a execution of the machine
@@ -92,7 +95,7 @@ class Machine:
 
         :param Tape tape: tape to load into machine
         """
-        self.loaded_tape = tape;
+        self.loaded_tape = tape
 
 
 class DFA(Machine):
@@ -203,6 +206,18 @@ class DFA(Machine):
         if not file_exists:
             raise FileNotFoundError
 
+    def export(self, filepath):
+        # generate a config
+        config = {}
+        config[kSTATES_PREFIX] = list(self.states)
+        config[kALPHA_PREFIX] = list(self.alpha)
+        config[kDTABLE_PREFIX] = self.d_table
+        config[kSTART_PREFIX] = self.start
+        config[kACCEPT_PREFIX] = list(self.accept)
+        with open(filepath, "w+") as f:
+            json.dump(config, f, sort_keys=True, indent=4)
+        pass
+
     def exec(self):
         self.current_state = self.start
         self.current_position = 0
@@ -268,6 +283,24 @@ class NFAlambda(Machine):
             if not self.accept.issubset(self.states):
                 raise InvalidConfigBlock(kACCEPT_PREFIX, self.accept)
 
+    def export(self, filepath):
+        config = {}
+        config[kSTATES_PREFIX] = list(self.states)
+        config[kALPHA_PREFIX] = list(self.alpha)
+        config[kDTABLE_PREFIX] = collections.defaultdict(dict)
+        for this_state in self.states:
+            for this_char in self.alpha:
+                output_list = list(self.d_table[this_state][this_char])
+                if len(output_list) == 0:
+                    output_list = kEMPTYSET
+                config[kDTABLE_PREFIX][this_state][this_char] = output_list
+        config[kSTART_PREFIX] = self.start
+        config[kACCEPT_PREFIX] = list(self.accept)
+
+        with open(filepath, "w+") as f:
+            json.dump(config, f, sort_keys=True, indent=4)
+
+
     def exec(self):
         raise AttributeError("exec disabled for NFAlambda")
 
@@ -314,10 +347,70 @@ class NFAlambda(Machine):
         Mprime.alpha.remove(kLAMBA)
         # empty dtable
         Mprime.d_table = collections.defaultdict(dict)
-        # init Q'
-        Mprime.states = self.lambda_closure(self.start)
+
+        t_table = self.t_table()
+
+        # init the nodes list
+        nodes = set()
+        for this_state in self.lambda_closure(self.start):
+            temp = Node({this_state})
+            nodes.add(temp)
 
         # start loop
+        bDone = False
+        while not bDone:
+            bMissingArc = False
+            for this_node in nodes:
+                if this_node.is_complete():
+                    continue
+                for this_char in Mprime.alpha:
+                    if not (this_node.get_d_table_entry(this_char)):
+                        bMissingArc = True
+                        X = this_node
+                        a = this_char
+                        break
+                if bMissingArc:
+                    break
+                else:
+                    this_node.completed()
+            if bMissingArc:
+                Y_set = set()
+                for this_state in X.set:
+                    Y_set = Y_set.union(t_table[this_state][a])
+                Y = Node(Y_set)
+
+                if not (Y in nodes):
+                    nodes.add(Y)
+                else:
+                    # get the existing node so we point at it
+                    for a_node in nodes:
+                        if hash(a_node) == hash(Y):
+                            Y = a_node
+                            break
+
+                # if not (hash(Y) in [hash(x) for x in nodes]):
+                #     nodes.add(Y)
+                # else:
+                #     for a_node in nodes:
+                #         if hash(a_node) == hash(Y):
+                #             Y = a_node
+                #             break
+
+                X.set_d_table_entry(a, Y)
+            elif not bMissingArc:
+                bDone = True
+
+        # now that we have the nodes, fill in the table, states and accepting
+        Mprime.states = set()
+        Mprime.accept = set()
+        for this_node in nodes:
+            # add the state to Q
+            Mprime.states.add(this_node.label)
+            # fill out the d_table
+            for this_char in Mprime.alpha:
+                Mprime.d_table[this_node.label][this_char] = this_node.get_d_table_entry(this_char).label
+            if self.accept.intersection(this_node.set):
+                Mprime.accept.add(this_node.label)
 
         return Mprime
 
@@ -326,12 +419,48 @@ class Node:
     def __init__(self, this_set: set):
         self.set: set = this_set
         self.label: str = self.set2node(self.set)
+        self.d_table_entry: dict = {}
+        self.complete = False
+
+    def __hash__(self):
+        return hash(self.label)
+
+    def __str__(self):
+        return "Node: {0}".format(self.label)
+
+    def __eq__(self, other):
+        if hash(self) == hash(other):
+            return True
+        else:
+            return False
+
+    def completed(self):
+        self.complete = True
+
+    def is_complete(self):
+        return self.complete
 
     def set2node(self, _set: set) -> str:
         temp = ""
-        for a in _set:
+        temp_list = list()
+        for this_item in _set:
+            temp_list.append(this_item)
+        temp_list.sort()
+        for a in temp_list:
             temp += a
+        if temp == "":
+            temp = kEMPTYSET
         return temp
+
+    def set_d_table_entry(self, _a: str, _node):
+        self.d_table_entry[_a] = _node
+
+    def get_d_table_entry(self, _a: str):
+        try:
+            ret = self.d_table_entry[_a]
+        except KeyError:
+            ret = None
+        return ret
 
 
 class MissingConfigBlock(Exception):
@@ -362,6 +491,9 @@ class Tape:
 if __name__ == "__main__":
     test = testNFAlamba()
     print(test.__dict__)
+    test.export(os.path.join(os.path.expanduser("~/Desktop"), "export.nfal"))
     print(test.t_table())
     # print(test.lambda_closure("q0").__repr__())
-    # print(test.convert().__dict__)
+    M = test.convert()
+    print(M.__dict__)
+    M.export(os.path.join(os.path.expanduser('~/Desktop'), "output.dfa"))
