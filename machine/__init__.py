@@ -53,7 +53,7 @@ def testDFA():
 
 
 def testNFAlamba():
-    return NFAlambda(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "test_config.nfal"))
+    return NFAlambda(filepath=os.path.join(os.path.expanduser("~"), "Desktop", "example.nfal"))
 
 
 class Machine:
@@ -228,7 +228,7 @@ class NFAlambda(Machine):
     def __init__(self, filepath=None):
         self.states: set = None
         self.alpha: set = None
-        self.t_table: dict = None
+        self.d_table: dict = None
         self.start: str = None
         self.accept: set = None
         super().__init__(filepath)
@@ -239,32 +239,32 @@ class NFAlambda(Machine):
 
             # check needed blocks
             needed_configs = {kSTATES_PREFIX, kALPHA_PREFIX, \
-                              kTTABLE_PREFIX, kSTART_PREFIX, \
+                              kDTABLE_PREFIX, kSTART_PREFIX, \
                               kACCEPT_PREFIX}
             all_blocks_present = needed_configs == set(configuration.keys())
             if not all_blocks_present:
                 raise MissingConfigBlock(set(configuration.keys()).difference(needed_configs))
 
             # validate blocks
-            self.states = set([x.upper() for x in configuration[kSTATES_PREFIX]])
+            self.states = set(configuration[kSTATES_PREFIX])
             if self.states == set():
                 raise InvalidConfigBlock(kSTATES_PREFIX, self.states)
-            self.alpha = set([x.lower() for x in configuration[kALPHA_PREFIX]])
+            self.alpha = set(configuration[kALPHA_PREFIX])
             if self.alpha == set():
                 raise InvalidConfigBlock(kALPHA_PREFIX, self.alpha)
-            self.t_table = configuration[kTTABLE_PREFIX]
-            for this_state in self.t_table.keys():
-                for this_char in self.t_table[this_state].keys():
-                    if self.t_table[this_state][this_char] == kEMPTYSET:
-                        self.t_table[this_state][this_char] = set()
+            self.d_table = configuration[kDTABLE_PREFIX]
+            for this_state in self.d_table.keys():
+                for this_char in self.d_table[this_state].keys():
+                    if self.d_table[this_state][this_char] == kEMPTYSET:
+                        self.d_table[this_state][this_char] = set()
                     else:
-                        self.t_table[this_state][this_char] = set(self.t_table[this_state][this_char])
-                        if not self.t_table[this_state][this_char].issubset(self.states):
-                            raise InvalidConfigBlock(kTTABLE_PREFIX, self.t_table[this_state][this_char])
+                        self.d_table[this_state][this_char] = set(self.d_table[this_state][this_char])
+                        if not self.d_table[this_state][this_char].issubset(self.states):
+                            raise InvalidConfigBlock(kDTABLE_PREFIX, self.d_table[this_state][this_char])
             self.start = configuration[kSTART_PREFIX]
             if not self.start in self.states:
                 raise InvalidConfigBlock(kSTART_PREFIX, self.start)
-            self.accept = set([x.upper() for x in configuration[kACCEPT_PREFIX]])
+            self.accept = set(configuration[kACCEPT_PREFIX])
             if not self.accept.issubset(self.states):
                 raise InvalidConfigBlock(kACCEPT_PREFIX, self.accept)
 
@@ -273,19 +273,36 @@ class NFAlambda(Machine):
 
     def lambda_closure(self, state) -> set:
         # basis
-        lc = set(state)
-        state_stack = list(self.t_table[state][kLAMBA])
+        if type(state) == str:
+            lc = {state}
+        else:
+            lc = state
+        state_stack = list(lc)
         while len(state_stack) != 0:
             current_state = state_stack.pop()
-            # rs
-            if not (current_state in lc):
-                lc.add(current_state)
-                try:
-                    state_stack.append(*self.t_table[current_state][kLAMBA])
-                except TypeError as e:
-                    # empty set in the t-table, nothing to add
-                    pass
+            possible_additions = self.d_table[current_state][kLAMBA]
+            if possible_additions == set():
+                continue
+            for this_state in possible_additions:
+                if not this_state in lc:
+                    lc.add(this_state)
+                    state_stack.append(this_state)
         return lc
+
+    def t_table(self) -> dict:
+        t_table = collections.defaultdict(dict)
+        reduced_alpha = copy.deepcopy(self.alpha)
+        reduced_alpha.remove(kLAMBA)
+        for this_state in self.states:
+            for this_char in reduced_alpha:
+                working_set = set()
+                lc = self.lambda_closure(this_state)
+                for state in lc:
+                    possible_transitions = self.lambda_closure(self.d_table[state][this_char])
+                    working_set = working_set.union(possible_transitions)
+                t_table[this_state][this_char] = working_set
+
+        return t_table
 
     def convert(self) -> DFA:
         # empty DFA
@@ -295,25 +312,26 @@ class NFAlambda(Machine):
         # init sigma'
         Mprime.alpha = copy.deepcopy(self.alpha)
         Mprime.alpha.remove(kLAMBA)
-        #empty dtable
+        # empty dtable
         Mprime.d_table = collections.defaultdict(dict)
         # init Q'
         Mprime.states = self.lambda_closure(self.start)
 
-        #start loop
+        # start loop
 
         return Mprime
 
 
-def set2node(_set: set) -> str:
-    temp = ""
-    for a in _set:
-        temp += a
-    return temp
+class Node:
+    def __init__(self, this_set: set):
+        self.set: set = this_set
+        self.label: str = self.set2node(self.set)
 
-
-def node2set(_str: str) -> set:
-    return set(_str)
+    def set2node(self, _set: set) -> str:
+        temp = ""
+        for a in _set:
+            temp += a
+        return temp
 
 
 class MissingConfigBlock(Exception):
@@ -344,5 +362,6 @@ class Tape:
 if __name__ == "__main__":
     test = testNFAlamba()
     print(test.__dict__)
-    print(test.lambda_closure("A").__repr__())
-    print(test.convert().__dict__)
+    print(test.t_table())
+    # print(test.lambda_closure("q0").__repr__())
+    # print(test.convert().__dict__)
