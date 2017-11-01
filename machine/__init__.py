@@ -10,9 +10,11 @@ kDTABLE_PREFIX = "D-Table"
 kTTABLE_PREFIX = "T-Table"
 kSTART_PREFIX = "Start"
 kACCEPT_PREFIX = "Accept"
+kEXEC_OUTPUT = "output"
+kEXEC_ACCEPT = "accepted"
+kEXEC_TAPE = "tape"
 kLAMBA = ""
 kEMPTYSET = "∅"
-
 
 def generateConfigDFA():
     config = dict()
@@ -78,6 +80,9 @@ class Machine:
         pass
 
     def export(self, filepath):
+        pass
+
+    def dumps(self) -> str:
         pass
 
     def exec(self):
@@ -206,38 +211,50 @@ class DFA(Machine):
         if not file_exists:
             raise FileNotFoundError
 
-    def export(self, filepath):
-        # generate a config
+    def __config(self) -> dict:
         config = {}
         config[kSTATES_PREFIX] = list(self.states)
         config[kALPHA_PREFIX] = list(self.alpha)
         config[kDTABLE_PREFIX] = self.d_table
         config[kSTART_PREFIX] = self.start
         config[kACCEPT_PREFIX] = list(self.accept)
+        return config
+
+    def export(self, filepath):
+        # generate a config
         with open(filepath, "w+", encoding='utf-8') as f:
-            json.dump(config, f, sort_keys=True, indent=4)
+            json.dump(self.__config(), f, sort_keys=True, indent=4)
         pass
 
-    def exec(self):
+    def dumps(self) -> str:
+        return json.dumps(self.__config(), sort_keys=True, indent=4)
+
+    def exec(self) -> dict:
         self.current_state = self.start
         self.current_position = 0
+        ret = dict()
+        output = ""
         try:
             while True:
-                print("state: ", self.current_state)
-                print("character: ", self.loaded_tape.read(self.current_position))
-                print("new state: ", self.d_table[self.current_state][self.loaded_tape.read(self.current_position)])
+                char = self.loaded_tape.read(self.current_position)
+                output += "state: {0}, ".format(self.current_state)
+                output += "character: {0}, ".format(char)
                 self.current_state = self.d_table[self.current_state][self.loaded_tape.read(self.current_position)]
+                output += "new state: {0}\n".format(self.current_state)
                 self.current_position += 1
         except IndexError as e:
             if self.current_state in self.accept:
-                print("accepted {1}, state: {0}".format(self.current_state, str(self.loaded_tape)))
-                return True
+                output += "accepted {1}, state: {0}\n".format(self.current_state, str(self.loaded_tape))
+                ret[kEXEC_ACCEPT] = True
             else:
-                print("rejected {1}, state: {0}".format(self.current_state, str(self.loaded_tape)))
-                return False
+                output += "rejected {1}, state: {0}\n".format(self.current_state, str(self.loaded_tape))
+                ret[kEXEC_ACCEPT] = False
         except KeyError as e:
-            print("rejected {0}, invalid character on tape: {1}".format(str(self.loaded_tape), e))
+            output = "rejected {0}, invalid character on tape: {1}\n".format(str(self.loaded_tape), e)
 
+        ret[kEXEC_OUTPUT] = output
+        ret[kEXEC_TAPE] = str(self.loaded_tape)
+        return ret
 
 class NFAlambda(Machine):
     def __init__(self, filepath=None):
@@ -283,7 +300,7 @@ class NFAlambda(Machine):
             if not self.accept.issubset(self.states):
                 raise InvalidConfigBlock(kACCEPT_PREFIX, self.accept)
 
-    def export(self, filepath):
+    def __config(self) -> dict:
         config = {}
         config[kSTATES_PREFIX] = list(self.states)
         config[kALPHA_PREFIX] = list(self.alpha)
@@ -296,10 +313,14 @@ class NFAlambda(Machine):
                 config[kDTABLE_PREFIX][this_state][this_char] = output_list
         config[kSTART_PREFIX] = self.start
         config[kACCEPT_PREFIX] = list(self.accept)
+        return config
 
+    def export(self, filepath):
         with open(filepath, "w+", encoding='utf-8') as f:
-            json.dump(config, f, sort_keys=True, indent=4)
+            json.dump(self.__config(), f, sort_keys=True, indent=4)
 
+    def dumps(self) -> str:
+        return json.dumps(self.__config(), sort_keys=True, indent=4)
 
     def exec(self):
         raise AttributeError("exec disabled for NFAlambda")
@@ -359,6 +380,15 @@ class NFAlambda(Machine):
                 t_table[this_state][this_char] = working_set
 
         return t_table
+
+    def dumps_ttable(self) -> str:
+        t_table = self.t_table()
+        for this_state in t_table.keys():
+            for this_key in t_table[this_state].keys():
+                item = t_table[this_state][this_key]
+                if type(item) == set:
+                    t_table[this_state][this_key] = list(item)
+        return json.dumps(t_table, sort_keys=True, indent=4)
 
     def convert(self) -> DFA:
         # empty DFA
@@ -519,5 +549,7 @@ if __name__ == "__main__":
     print(test.t_table())
     # print(test.lambda_closure("q0").__repr__())
     M = test.convert()
+    M.load(Tape("ab"))
+    print(M.exec())
     print(M.__dict__)
     M.export(os.path.join(os.path.expanduser('~/Desktop'), "output.dfa"))
