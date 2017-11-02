@@ -406,61 +406,51 @@ class NFAlambda(Machine):
 
         # init the nodes list
         nodes = set()
-        # for this_state in self.lambda_closure(self.start):
-        # temp = Node({this_state})
-        # nodes.add(temp)
-
         nodes.add(Node(self.lambda_closure(self.start)))
+        completed_nodes = set()
 
         # start loop
         bDone = False
         while not bDone:
-            bMissingArc = False
-            for this_node in nodes:
-                
-                if this_node.is_complete():
-                    continue
-                for this_char in Mprime.alpha:
-                    if not (this_node.get_d_table_entry(this_char)):
-                        bMissingArc = True
-                        X = this_node
-                        a = this_char
-                        break
-                if bMissingArc:
-                    break
-                else:
-                    this_node.completed()
-            if bMissingArc:
+            try:
+                this_node = nodes.pop()
+            except KeyError as e:
+                # out of nodes
+                bDone = True
+                continue
+            for this_char in Mprime.alpha:
+                X = this_node
+                a = this_char
                 Y_set = set()
                 for this_state in X.set:
                     Y_set = Y_set.union(self.lambda_closure(t_table[this_state][a]))
                 Y = Node(Y_set)
 
-                if not (Y in nodes):
-                    nodes.add(Y)
+                # looping to itself
+                if hash(Y) == hash(X):
+                    Y = X
+                # arcing to an existing node
+                elif Y in nodes or Y in completed_nodes:
+                    if Y in nodes:
+                        for a_node in nodes:
+                            if hash(a_node) == hash(Y):
+                                Y = a_node
+                                break
+                    else:
+                        for a_node in completed_nodes:
+                            if hash(a_node) == hash(Y):
+                                Y = a_node
+                                break
+                # arcing to a new node
                 else:
-                    # get the existing node so we point at it
-                    for a_node in nodes:
-                        if hash(a_node) == hash(Y):
-                            Y = a_node
-                            break
-
-                # if not (hash(Y) in [hash(x) for x in nodes]):
-                #     nodes.add(Y)
-                # else:
-                #     for a_node in nodes:
-                #         if hash(a_node) == hash(Y):
-                #             Y = a_node
-                #             break
-
+                    nodes.add(Y)
                 X.set_d_table_entry(a, Y)
-            elif not bMissingArc:
-                bDone = True
+            completed_nodes.add(this_node)
 
         # now that we have the nodes, fill in the table, states and accepting
         Mprime.states = set()
         Mprime.accept = set()
-        for this_node in nodes:
+        for this_node in completed_nodes:
             # add the state to Q
             Mprime.states.add(this_node.label)
             # fill out the d_table
@@ -477,7 +467,7 @@ class Node:
         self.set: set = this_set
         self.label: str = self.set2node(self.set)
         self.d_table_entry: dict = {}
-        self.complete = False
+        # self.complete = False
 
     def __hash__(self):
         return hash(self.label)
@@ -491,11 +481,11 @@ class Node:
         else:
             return False
 
-    def completed(self):
-        self.complete = True
+    # def completed(self):
+    #     self.complete = True
 
-    def is_complete(self):
-        return self.complete
+    # def is_complete(self):
+    #     return self.complete
 
     def set2node(self, _set: set) -> str:
         temp = ""
