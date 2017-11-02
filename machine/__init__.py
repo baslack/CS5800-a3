@@ -394,7 +394,8 @@ class NFAlambda(Machine):
         # empty DFA
         Mprime = DFA()
         # init q0
-        Mprime.start = copy.deepcopy(self.start)
+        # Mprime.start = copy.deepcopy(self.start)
+        Mprime.start = Node(self.lambda_closure(self.start)).label
         # init sigma'
         Mprime.alpha = copy.deepcopy(self.alpha)
         Mprime.alpha.remove(kLAMBA)
@@ -405,9 +406,11 @@ class NFAlambda(Machine):
 
         # init the nodes list
         nodes = set()
-        for this_state in self.lambda_closure(self.start):
-            temp = Node({this_state})
-            nodes.add(temp)
+        # for this_state in self.lambda_closure(self.start):
+        # temp = Node({this_state})
+        # nodes.add(temp)
+
+        nodes.add(Node(self.lambda_closure(self.start)))
 
         # start loop
         bDone = False
