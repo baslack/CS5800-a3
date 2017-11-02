@@ -28,7 +28,7 @@ def generateConfigDFA():
     config[kACCEPT_PREFIX] = list(set("A"))
     filepath = os.path.join(os.path.expanduser("~"), "Desktop", "test_config.dfa")
     with open(filepath, "w+", encoding='utf-8') as f:
-        json.dump(config, f)
+        json.dump(config, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
 def generateConfigNFAlamba():
@@ -43,7 +43,7 @@ def generateConfigNFAlamba():
     config[kACCEPT_PREFIX] = list(set("A"))
     filepath = os.path.join(os.path.expanduser("~"), "Desktop", "test_config.nfal")
     with open(filepath, "w+", encoding='utf-8') as f:
-        json.dump(config, f)
+        json.dump(config, f, sort_keys=True, indent=4, ensure_ascii=False)
 
 
 def testDFA():
@@ -223,11 +223,11 @@ class DFA(Machine):
     def export(self, filepath):
         # generate a config
         with open(filepath, "w+", encoding='utf-8') as f:
-            json.dump(self.__config(), f, sort_keys=True, indent=4)
+            json.dump(self.__config(), f, sort_keys=True, indent=4, ensure_ascii=False)
         pass
 
     def dumps(self) -> str:
-        return json.dumps(self.__config(), sort_keys=True, indent=4)
+        return json.dumps(self.__config(), sort_keys=True, indent=4, ensure_ascii=False)
 
     def exec(self) -> dict:
         self.current_state = self.start
@@ -317,10 +317,10 @@ class NFAlambda(Machine):
 
     def export(self, filepath):
         with open(filepath, "w+", encoding='utf-8') as f:
-            json.dump(self.__config(), f, sort_keys=True, indent=4)
+            json.dump(self.__config(), f, sort_keys=True, indent=4, ensure_ascii=False)
 
     def dumps(self) -> str:
-        return json.dumps(self.__config(), sort_keys=True, indent=4)
+        return json.dumps(self.__config(), sort_keys=True, indent=4, ensure_ascii=False)
 
     def exec(self):
         raise AttributeError("exec disabled for NFAlambda")
@@ -388,7 +388,7 @@ class NFAlambda(Machine):
                 item = t_table[this_state][this_key]
                 if type(item) == set:
                     t_table[this_state][this_key] = list(item)
-        return json.dumps(t_table, sort_keys=True, indent=4)
+        return json.dumps(t_table, sort_keys=True, indent=4, ensure_ascii=False)
 
     def convert(self) -> DFA:
         # empty DFA
@@ -417,6 +417,7 @@ class NFAlambda(Machine):
         while not bDone:
             bMissingArc = False
             for this_node in nodes:
+                
                 if this_node.is_complete():
                     continue
                 for this_char in Mprime.alpha:
@@ -432,7 +433,7 @@ class NFAlambda(Machine):
             if bMissingArc:
                 Y_set = set()
                 for this_state in X.set:
-                    Y_set = Y_set.union(t_table[this_state][a])
+                    Y_set = Y_set.union(self.lambda_closure(t_table[this_state][a]))
                 Y = Node(Y_set)
 
                 if not (Y in nodes):
@@ -545,14 +546,6 @@ class Tape:
 
 
 if __name__ == "__main__":
-    test = testNFAlamba()
-    print(test.__dict__)
-    test.export(os.path.join(os.path.expanduser("~/Desktop"), "export.nfal"))
-    print(test.lambda_closure2({"q0", "q2"}))
-    print(test.t_table())
-    # print(test.lambda_closure("q0").__repr__())
-    M = test.convert()
-    M.load(Tape("ab"))
-    print(M.exec())
-    print(M.__dict__)
-    M.export(os.path.join(os.path.expanduser('~/Desktop'), "output.dfa"))
+    test = NFAlambda("../configs/ex_341.nfal")
+    test_prime = test.convert()
+    pass
