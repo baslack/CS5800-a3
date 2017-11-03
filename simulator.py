@@ -136,7 +136,7 @@ if __name__ == "__main__":
                 print("Tape: ", computation["tape"])
                 print("Machine Execution:")
                 print(computation["output"])
-            except machine.InvalidCharacterInTapeException as e:
+            except machine.InvalidCharacterInTape as e:
                 print("Tape contains invalid character", *[str(x) for x in e.args])
                 print("Allowed characters: ", Mprime.alpha)
     elif kDFA_flag in commands:
@@ -148,7 +148,7 @@ if __name__ == "__main__":
             print("Tape: ", computation["tape"])
             print("Machine Execution:")
             print(computation["output"])
-        except machine.InvalidCharacterInTapeException as e:
+        except machine.InvalidCharacterInTape as e:
             print("Tape contains invalid character", *[str(x) for x in e.args])
             print("Allowed characters: ", M.alpha)
 

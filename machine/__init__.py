@@ -251,13 +251,13 @@ class DFA(Machine):
                 ret[kEXEC_ACCEPT] = False
         except KeyError as e:
             output = "rejected {0}, invalid character on tape: {1}\n".format(str(self.loaded_tape), e)
-            raise InvalidCharacterInTapeException(*e.args)
+            raise InvalidCharacterInTape(*e.args)
 
         ret[kEXEC_OUTPUT] = output
         ret[kEXEC_TAPE] = str(self.loaded_tape)
         return ret
 
-class InvalidCharacterInTapeException(Exception):
+class InvalidCharacterInTape(Exception):
     pass
 
 class NFAlambda(Machine):
