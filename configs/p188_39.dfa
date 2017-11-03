@@ -4,8 +4,8 @@
         "AB"
     ],
     "Alphabet": [
-        "b",
-        "a"
+        "a",
+        "b"
     ],
     "D-Table": {
         "AB": {
@@ -28,8 +28,8 @@
     "Start": "AB",
     "States": [
         "BC",
+        "EF",
         "DE",
-        "AB",
-        "EF"
+        "AB"
     ]
 }

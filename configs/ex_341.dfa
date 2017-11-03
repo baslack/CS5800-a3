@@ -1,10 +1,10 @@
 {
     "Accept": [
-        "FG",
-        "DG",
         "BCDEG",
-        "BCEFG",
-        "DFG"
+        "DFG",
+        "DG",
+        "FG",
+        "BCEFG"
     ],
     "Alphabet": [
         "0",
@@ -46,13 +46,13 @@
     },
     "Start": "ABCE",
     "States": [
+        "BCDEG",
+        "ABCE",
+        "DFG",
+        "DG",
+        "∅",
         "BCE",
         "FG",
-        "DG",
-        "BCDEG",
-        "BCEFG",
-        "∅",
-        "DFG",
-        "ABCE"
+        "BCEFG"
     ]
 }

@@ -1,3 +1,4 @@
 env/*
 .idea/*
 machine/__pycache__/
+typescript
