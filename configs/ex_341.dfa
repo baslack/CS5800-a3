@@ -1,0 +1,58 @@
+{
+    "Accept": [
+        "FG",
+        "DG",
+        "BCDEG",
+        "BCEFG",
+        "DFG"
+    ],
+    "Alphabet": [
+        "0",
+        "1"
+    ],
+    "D-Table": {
+        "ABCE": {
+            "0": "BCDEG",
+            "1": "DG"
+        },
+        "BCDEG": {
+            "0": "BCDEG",
+            "1": "DFG"
+        },
+        "BCE": {
+            "0": "BCDEG",
+            "1": "DG"
+        },
+        "BCEFG": {
+            "0": "BCDEG",
+            "1": "BCDEG"
+        },
+        "DFG": {
+            "0": "BCE",
+            "1": "BCEFG"
+        },
+        "DG": {
+            "0": "BCE",
+            "1": "FG"
+        },
+        "FG": {
+            "0": "∅",
+            "1": "BCE"
+        },
+        "∅": {
+            "0": "∅",
+            "1": "∅"
+        }
+    },
+    "Start": "ABCE",
+    "States": [
+        "BCE",
+        "FG",
+        "DG",
+        "BCDEG",
+        "BCEFG",
+        "∅",
+        "DFG",
+        "ABCE"
+    ]
+}

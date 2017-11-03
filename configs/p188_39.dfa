@@ -1,0 +1,35 @@
+{
+    "Accept": [
+        "BC",
+        "AB"
+    ],
+    "Alphabet": [
+        "b",
+        "a"
+    ],
+    "D-Table": {
+        "AB": {
+            "a": "AB",
+            "b": "BC"
+        },
+        "BC": {
+            "a": "DE",
+            "b": "BC"
+        },
+        "DE": {
+            "a": "DE",
+            "b": "EF"
+        },
+        "EF": {
+            "a": "AB",
+            "b": "EF"
+        }
+    },
+    "Start": "AB",
+    "States": [
+        "BC",
+        "DE",
+        "AB",
+        "EF"
+    ]
+}

@@ -133,7 +133,7 @@ if __name__ == "__main__":
             computation = Mprime.exec()
             print("Accepted: ", computation["accepted"])
             print("Tape: ", computation["tape"])
-            print("Output:")
+            print("Machine Execution:")
             print(computation["output"])
     elif kDFA_flag in commands:
         M = machine.DFA(commands[kDFA_flag])
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         computation = M.exec()
         print("Accepted: ", computation["accepted"])
         print("Tape: ", computation["tape"])
-        print("Output:")
+        print("Machine Execution:")
         print(computation["output"])
 
     print("Run Complete - Exiting")
