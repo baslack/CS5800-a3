@@ -118,7 +118,7 @@ if __name__ == "__main__":
         exit(-4)
     except ConversionWithoutNFA_Exception as e:
         errmsg("Usage: simulator <inputstring>", kNFAL_flag, "<filepath>", kCONV_flag, "[<filepath>]")
-    print(commands)
+    # print(commands)
 
     if kNFAL_flag in commands:
         M = machine.NFAlambda(commands[kNFAL_flag])
@@ -130,19 +130,27 @@ if __name__ == "__main__":
             print("DFA Configuration:")
             print(Mprime.dumps())
             Mprime.load(machine.Tape(commands[kTAPE_flag]))
-            computation = Mprime.exec()
+            try:
+                computation = Mprime.exec()
+                print("Accepted: ", computation["accepted"])
+                print("Tape: ", computation["tape"])
+                print("Machine Execution:")
+                print(computation["output"])
+            except machine.InvalidCharacterInTapeException as e:
+                print("Tape contains invalid character", *[str(x) for x in e.args])
+                print("Allowed characters: ", Mprime.alpha)
+    elif kDFA_flag in commands:
+        M = machine.DFA(commands[kDFA_flag])
+        M.load(machine.Tape(commands[kTAPE_flag]))
+        try:
+            computation = M.exec()
             print("Accepted: ", computation["accepted"])
             print("Tape: ", computation["tape"])
             print("Machine Execution:")
             print(computation["output"])
-    elif kDFA_flag in commands:
-        M = machine.DFA(commands[kDFA_flag])
-        M.load(machine.Tape(commands[kTAPE_flag]))
-        computation = M.exec()
-        print("Accepted: ", computation["accepted"])
-        print("Tape: ", computation["tape"])
-        print("Machine Execution:")
-        print(computation["output"])
+        except machine.InvalidCharacterInTapeException as e:
+            print("Tape contains invalid character", *[str(x) for x in e.args])
+            print("Allowed characters: ", M.alpha)
 
     print("Run Complete - Exiting")
     exit(0)
